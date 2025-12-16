@@ -1,16 +1,25 @@
 import './MainPage.css'
-import Header from './components/header.tsx'
+import Header from './components/Header.tsx'
+import Sidebar from './components/Sidebar.tsx'
+import ContentBox from './components/ContentBox.tsx'
 
 function MainPage() {
 
   return (
     <>
-        <div className="mainpage-canvas">
-            <div className="mainpage-container">
-                <Header />
-                <p>Lorem ipsum</p>
-            </div>
+      <div className="mainpage-canvas">
+        <div className="mainpage-container">
+          <div className="mainpage-header-container">
+            <Header />
+          </div>
+          <div className="mainpage-body-container">
+            <Sidebar />
+            <ContentBox />
+          </div>
+          
+          {/* <p>Notes Page</p> */}
         </div>
+      </div>
     </>
   )
 }
