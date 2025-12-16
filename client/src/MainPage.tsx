@@ -16,8 +16,6 @@ function MainPage() {
             <Sidebar />
             <ContentBox />
           </div>
-          
-          {/* <p>Notes Page</p> */}
         </div>
       </div>
     </>

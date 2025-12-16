@@ -1,4 +1,5 @@
 import './ContentBox.css'
+import Editor from './Editor.tsx'
 
 function ContentBox() {
 
@@ -10,10 +11,7 @@ function ContentBox() {
             <div className="contentbox-header-patientinfo"></div>
           </div>
           <div className="contentbox-body">
-            <div className="contentbox-toolbar"></div>
-            <div className="contentbox-textbox">
-              <p>Content Box</p>
-            </div>
+            <Editor />
           </div>
         </div>
       </div>
