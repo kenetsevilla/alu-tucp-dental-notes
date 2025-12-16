@@ -44,8 +44,50 @@
 }
 
 .editor-text-code {
-  background-color: #f0f0f0;
+  color: white;
+  background-color: #404040;
   font-family: monospace;
   padding: 2px 4px;
   border-radius: 4px;
+}
+
+.lexical-editor-container {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    background-color: transparent;
+}
+
+.lexical-editor-inner {
+    width: 100%; 
+    height: 100%;
+    position: relative;
+    overflow-y: hidden;
+}
+
+.lexical-editor-input {
+    height: 100%;
+    width: 100%;
+    padding: 10px 20px;
+    color: black;
+    outline: none;
+    overflow-y: auto;
+}
+
+.editor-heading-h1 { font-size: 24px; font-weight: bold; margin: 12px 0; }
+.editor-heading-h2 { font-size: 20px; font-weight: bold; margin: 10px 0; }
+
+.editor-text-bold { font-weight: bold; }
+.editor-text-italic { font-style: italic; }
+.editor-text-underline { text-decoration: underline; }
+.editor-text-strikethrough { text-decoration: line-through; }
+.editor-text-underlineStrikethrough { text-decoration: underline line-through; }
+.editor-text-code {
+    color: white;
+    background-color: #404040;
+    font-family: monospace;
+    padding: 2px 4px;
+    border-radius: 4px;
 }

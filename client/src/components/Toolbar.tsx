@@ -10,7 +10,8 @@ import {
   $getSelection,
   $isRangeSelection,
   $createParagraphNode,
-  type LexicalEditor,
+  $createTextNode,
+  $isElementNode,
   type ElementFormatType
 } from "lexical";
 import { 
@@ -23,7 +24,28 @@ import {
   $isHeadingNode,
   type HeadingTagType
 } from "@lexical/rich-text";
+
 import "./Toolbar.css";
+
+// Icons
+import undoIcon from "../assets/bx-undo.svg";
+import redoIcon from "../assets/bx-redo.svg";
+import revisionIcon from "../assets/bx-revision.svg";
+import chevrondownIcon from "../assets/bxs-chevron-down.svg";
+import lockopenIcon from "../assets/bxs-lock-open-alt.svg";
+import lockclosedIcon from "../assets/bxs-lock-alt.svg";
+import importIcon from "../assets/bx-import.svg";
+import exportIcon from "../assets/bx-export.svg";
+import highlightIcon from "../assets/bx-highlight.svg";
+import colorIcon from "../assets/bx-font-color.svg";
+import minusIcon from "../assets/bx-minus.svg";
+import plusIcon from "../assets/bx-plus.svg";
+import boldIcon from "../assets/bx-bold.svg";
+import italicIcon from "../assets/bx-italic.svg";
+import underlineIcon from "../assets/bx-underline.svg";
+import strikethroughIcon from "../assets/bx-strikethrough.svg";
+import codeIcon from "../assets/bx-code-alt.svg";
+import clearformatIcon from "../assets/bxs-eraser.svg";
 
 const blockTypeToBlockName = {
   paragraph: "Normal",
@@ -36,6 +58,9 @@ export default function Toolbar() {
   const [editor] = useLexicalComposerContext();
   const [blockType, setBlockType] = useState<keyof typeof blockTypeToBlockName>("paragraph");
   
+  // Alignment State
+  const [elementFormat, setElementFormat] = useState<ElementFormatType>("left");
+
   // Dropdown States
   const [showBlockOptionsDropDown, setShowBlockOptionsDropDown] = useState(false);
   const [showAlignDropDown, setShowAlignDropDown] = useState(false);
@@ -51,10 +76,14 @@ export default function Toolbar() {
   const [fontColor, setFontColor] = useState("#000000");
   const [bgColor, setBgColor] = useState("#ffffff");
 
-  // Lock (Read-Only) State
+  // Font Size State
+  const [fontSize, setFontSize] = useState("15px");
+  const [isFontSizeInputActive, setIsFontSizeInputActive] = useState(false); 
+
+  // Lock State
   const [isEditable, setIsEditable] = useState(() => editor.isEditable());
 
-  // File Input Ref for Import
+  // File Input Ref
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const updateToolbar = useCallback(() => {
@@ -69,41 +98,41 @@ export default function Toolbar() {
       const elementDOM = editor.getElementByKey(elementKey);
 
       if (elementDOM !== null) {
+        if ($isElementNode(element)) {
+          setElementFormat(element.getFormatType() || "left");
+        }
+
         if ($isHeadingNode(element)) {
-          const tag = element.getTag();
-          setBlockType(tag as keyof typeof blockTypeToBlockName);
+           setBlockType(element.getTag() as keyof typeof blockTypeToBlockName);
         } else {
-          const type = element.getType();
-          if (type in blockTypeToBlockName) {
-            setBlockType(type as keyof typeof blockTypeToBlockName);
-          } else {
-            setBlockType("paragraph");
-          }
+           setBlockType(element.getType() as keyof typeof blockTypeToBlockName || "paragraph");
         }
       }
       
-      // Update Button States
+      // Update Buttons
       setIsBold(selection.hasFormat("bold"));
       setIsItalic(selection.hasFormat("italic"));
       setIsUnderline(selection.hasFormat("underline"));
       setIsStrikethrough(selection.hasFormat("strikethrough"));
       setIsCode(selection.hasFormat("code"));
 
-      // Update Color Pickers
+      // Update Colors
       setFontColor($getSelectionStyleValueForProperty(selection, "color", "#000000"));
       setBgColor($getSelectionStyleValueForProperty(selection, "background-color", "#ffffff"));
+      
+      if (!isFontSizeInputActive) {
+        setFontSize($getSelectionStyleValueForProperty(selection, "font-size", "15px"));
+      }
     }
-  }, [editor]);
+  }, [editor, isFontSizeInputActive]);
 
   useEffect(() => {
-    // Register the listener for selection updates
     const unregisterUpdate = editor.registerUpdateListener(({ editorState }) => {
       editorState.read(() => {
         updateToolbar();
       });
     });
 
-    // Register listener for Editable mode changes
     const unregisterEditable = editor.registerEditableListener((editable) => {
       setIsEditable(editable);
     });
@@ -154,7 +183,6 @@ export default function Toolbar() {
     setShowAlignDropDown(false);
   };
 
-  // Color Handlers
   const onFontColorSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     editor.update(() => {
       const selection = $getSelection();
@@ -173,7 +201,54 @@ export default function Toolbar() {
     });
   };
 
-  // Import / Export Handlers
+  const applyFontSize = (size: string) => {
+    editor.update(() => {
+      const selection = $getSelection();
+      if ($isRangeSelection(selection)) {
+        $patchStyleText(selection, { "font-size": size });
+      }
+    });
+  };
+
+  const handleFontSizeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setFontSize(val + "px");
+  };
+
+  const onFontSizeExit = (e: React.KeyboardEvent<HTMLInputElement> | React.FocusEvent<HTMLInputElement>) => {
+    if ('key' in e && e.key !== 'Enter') return;
+
+    const isValueEmpty = fontSize === "" || fontSize === "px";
+
+    if (isValueEmpty) {
+      editor.getEditorState().read(() => {
+        const selection = $getSelection();
+        if ($isRangeSelection(selection)) {
+          const currentSize = $getSelectionStyleValueForProperty(selection, "font-size", "15px");
+          setFontSize(currentSize);
+        }
+      });
+    } else {
+      applyFontSize(fontSize);
+    }
+    
+    setIsFontSizeInputActive(false); 
+
+    if ('key' in e && e.key === 'Enter') {
+      editor.focus(); 
+    }
+  };
+
+  const updateFontSize = (amount: number) => {
+    const currentSize = parseInt(fontSize.replace("px", "") || "15", 10);
+    const newSize = currentSize + amount;
+    if (newSize > 5) { 
+      const sizeStr = newSize + "px";
+      setFontSize(sizeStr);
+      applyFontSize(sizeStr);
+    }
+  };
+
   const exportState = () => {
     const editorState = editor.getEditorState();
     const jsonString = JSON.stringify(editorState.toJSON());
@@ -208,12 +283,59 @@ export default function Toolbar() {
     event.target.value = ""; // Reset input
   };
 
+  const clearFormatting = useCallback(() => {
+    editor.update(() => {
+      const selection = $getSelection();
+      if ($isRangeSelection(selection)) {
+        $patchStyleText(selection, {
+          color: null,
+          "background-color": null,
+          "font-family": null,
+          "font-size": null,
+        });
+
+        const anchor = selection.anchor;
+        const focus = selection.focus;
+        const anchorNode = anchor.getNode();
+        const focusNode = focus.getNode();
+
+        const isSingleBlock = 
+          anchorNode.getTopLevelElement()?.getKey() === 
+          focusNode.getTopLevelElement()?.getKey();
+
+        if (isSingleBlock) {
+          const textContent = selection.getTextContent();
+          const textNode = $createTextNode(textContent);
+          textNode.setFormat(0); 
+          textNode.setStyle("");
+          selection.insertNodes([textNode]);
+        } else {
+          const formats: Array<"bold" | "italic" | "underline" | "strikethrough" | "code" | "subscript" | "superscript"> = [
+            "bold", "italic", "underline", "strikethrough", "code", "subscript", "superscript"
+          ];
+          formats.forEach((format) => {
+            if (selection.hasFormat(format)) {
+              selection.formatText(format);
+            } else {
+              selection.formatText(format); 
+              selection.formatText(format);
+            }
+          });
+        }
+      }
+    });
+  }, [editor]);
+
   return (
     <div className="lexical-toolbar">
       {/* Undo/Redo */}
       <div className="undo-redo-bar">
-         <button onClick={() => editor.dispatchCommand(UNDO_COMMAND, undefined)} className="toolbar-btn" disabled={!isEditable}>Undo</button>
-         <button onClick={() => editor.dispatchCommand(REDO_COMMAND, undefined)} className="toolbar-btn" disabled={!isEditable}>Redo</button>
+         <button onClick={() => editor.dispatchCommand(UNDO_COMMAND, undefined)} className="toolbar-btn" disabled={!isEditable}>
+          <img src={undoIcon} alt="Undo" />
+         </button>
+         <button onClick={() => editor.dispatchCommand(REDO_COMMAND, undefined)} className="toolbar-btn" disabled={!isEditable}>
+          <img src={redoIcon} alt="Redo" />
+         </button>
       </div>
 
       {/* Headings Dropdown */}
@@ -223,7 +345,8 @@ export default function Toolbar() {
           onClick={() => setShowBlockOptionsDropDown(!showBlockOptionsDropDown)}
           disabled={!isEditable}
         >
-          {blockTypeToBlockName[blockType]} ▼
+          {blockTypeToBlockName[blockType]}
+          <img src={chevrondownIcon} className="chevrondown" alt="Expand" />
         </button>
         {showBlockOptionsDropDown && (
           <div className="heading-dropdown">
@@ -235,22 +358,25 @@ export default function Toolbar() {
         )}
       </div>
 
-      {/*  Alignment Dropdown */}
+      {/* Alignment Dropdown */}
       <div className="align-bar">
         <button
           className="heading-btn"
           onClick={() => setShowAlignDropDown(!showAlignDropDown)}
           disabled={!isEditable}
         >
-          Align ▼
+          Align
+          <img src={chevrondownIcon} className="chevrondown" alt="Expand" />
         </button>
         {showAlignDropDown && (
           <div className="heading-dropdown">
-             <button className="item" onClick={() => formatAlign("left")}>Left Align</button>
-             <button className="item" onClick={() => formatAlign("center")}>Center Align</button>
-             <button className="item" onClick={() => formatAlign("right")}>Right Align</button>
-             <button className="item" onClick={() => formatAlign("justify")}>Justify Align</button>
-             <div className="divider" style={{ borderTop: "1px solid #eee", margin: "4px 0" }}></div>
+             {/* ADDED CHECKS BELOW */}
+             <button className="item" onClick={() => formatAlign("left")}>Left Align {elementFormat === "left" && "✓"}</button>
+             <button className="item" onClick={() => formatAlign("center")}>Center Align {elementFormat === "center" && "✓"}</button>
+             <button className="item" onClick={() => formatAlign("right")}>Right Align {elementFormat === "right" && "✓"}</button>
+             <button className="item" onClick={() => formatAlign("justify")}>Justify Align {elementFormat === "justify" && "✓"}</button>
+             
+             <div className="divider" style={{ borderTop: "3px solid black", margin: "4px 0", width: "100%", height: "1%"}}></div>
              <button className="item" onClick={() => { editor.dispatchCommand(OUTDENT_CONTENT_COMMAND, undefined); setShowAlignDropDown(false); }}>Outdent</button>
              <button className="item" onClick={() => { editor.dispatchCommand(INDENT_CONTENT_COMMAND, undefined); setShowAlignDropDown(false); }}>Indent</button>
           </div>
@@ -259,19 +385,70 @@ export default function Toolbar() {
 
       {/* Text Formatting Tools */}
       <div className="tools-bar">
-        <button disabled={!isEditable} className={`toolbar-btn bold ${isBold ? "active" : ""}`} onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "bold")}>B</button>
-        <button disabled={!isEditable} className={`toolbar-btn italic ${isItalic ? "active" : ""}`} onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "italic")}>I</button>
-        <button disabled={!isEditable} className={`toolbar-btn underline ${isUnderline ? "active" : ""}`} onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "underline")}>U</button>
-        <button disabled={!isEditable} className={`toolbar-btn strike ${isStrikethrough ? "active" : ""}`} onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "strikethrough")}>S</button>
-        <button disabled={!isEditable} className={`toolbar-btn code ${isCode ? "active" : ""}`} onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "code")}>&lt;/&gt;</button>
+        <button disabled={!isEditable} style={{ marginRight: "5%" }} className={`toolbar-btn bold ${isBold ? "active" : ""}`} onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "bold")}>
+          <img src={boldIcon} />
+        </button>
+        <button disabled={!isEditable} style={{ marginRight: "5%" }} className={`toolbar-btn italic ${isItalic ? "active" : ""}`} onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "italic")}>
+          <img src={italicIcon} />
+        </button>
+        <button disabled={!isEditable} style={{ marginRight: "5%" }} className={`toolbar-btn underline ${isUnderline ? "active" : ""}`} onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "underline")}>
+          <img src={underlineIcon} />
+        </button>
+        <button disabled={!isEditable} style={{ marginRight: "5%" }} className={`toolbar-btn strike ${isStrikethrough ? "active" : ""}`} onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "strikethrough")}>
+          <img src={strikethroughIcon} />
+        </button>
+        <button disabled={!isEditable} style={{ marginRight: "5%" }} className={`toolbar-btn code ${isCode ? "active" : ""}`} onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "code")}>
+          <img src={codeIcon} />
+        </button>
+        <button disabled={!isEditable} style={{ marginRight: "5%" }} className="toolbar-btn" onClick={clearFormatting} title="Clear Formatting">
+          <img src={clearformatIcon} />
+        </button>
       </div>
+
+      <div className="divider"></div>
+
+      {/* Font Size Picker */}
+      <div className="font-size-wrapper">
+        <button 
+          className="toolbar-btn font-btn" 
+          onClick={() => updateFontSize(-1)}
+          disabled={!isEditable}
+          title="Decrease Font Size"
+        >
+          <img src={minusIcon} width="50%" />
+        </button>
+        
+        <input 
+          type="number" 
+          className="font-size-input" 
+          value={fontSize.replace("px", "")} 
+          onChange={handleFontSizeChange}
+          onFocus={() => setIsFontSizeInputActive(true)}
+          onBlur={onFontSizeExit}
+          onKeyDown={onFontSizeExit}
+          disabled={!isEditable}
+        />
+        
+        <button 
+          className="toolbar-btn font-btn" 
+          onClick={() => updateFontSize(1)}
+          disabled={!isEditable}
+          title="Increase Font Size"
+        >
+          <img src={plusIcon} width="50%" />
+        </button>
+      </div>
+
+      <div className="divider"></div>
 
       {/* Color Pickers (Text & Background) */}
       <div className="color-bar">
         {/* Text Color */}
         <div className="color-picker-wrapper">
            <label htmlFor="font-color-picker" className="color-picker-label" title="Text Color">
-              <span className="icon">A</span>
+              <span className="icon">
+                <img src={colorIcon} width="70%" />
+              </span>
               <span className="color-line" style={{ backgroundColor: fontColor }}></span>
            </label>
            <input 
@@ -297,7 +474,7 @@ export default function Toolbar() {
              setFontColor("#000000"); 
            }}
         >
-          ✕
+          <img src={revisionIcon} width="150%" />
         </button>
 
         <div className="divider"></div>
@@ -305,7 +482,9 @@ export default function Toolbar() {
         {/* Background Color */}
         <div className="color-picker-wrapper">
            <label htmlFor="bg-color-picker" className="color-picker-label" title="Highlight Color">
-              <span className="icon">🖊️</span>
+              <span className="icon">
+                <img src={highlightIcon} width="70%" />
+              </span>
               <span className="color-line" style={{ backgroundColor: bgColor }}></span>
            </label>
            <input 
@@ -331,7 +510,7 @@ export default function Toolbar() {
              setBgColor("#ffffff");
            }}
         >
-          ✕
+          <img src={revisionIcon} width="150%" />
         </button>
       </div>
 
@@ -339,8 +518,12 @@ export default function Toolbar() {
 
       {/* Import / Export */}
       <div className="actions-bar">
-        <button className="toolbar-btn" onClick={exportState} title="Export JSON">⬇️</button>
-        <button className="toolbar-btn" onClick={() => fileInputRef.current?.click()} title="Import JSON" disabled={!isEditable}>⬆️</button>
+        <button className="toolbar-btn" onClick={exportState} title="Export JSON">
+          <img src={exportIcon} />
+        </button>
+        <button className="toolbar-btn" onClick={() => fileInputRef.current?.click()} title="Import JSON" disabled={!isEditable}>
+          <img src={importIcon} />
+        </button>
         <input type="file" ref={fileInputRef} onChange={importState} style={{ display: "none" }} accept=".json"/>
       </div>
 
@@ -352,7 +535,7 @@ export default function Toolbar() {
         onClick={() => editor.setEditable(!editor.isEditable())}
         title="Toggle Read-Only Mode"
       >
-        {isEditable ? "🔓" : "🔒"}
+        {isEditable ? <img src={lockopenIcon} /> : <img src={lockclosedIcon} />}
       </button>
 
     </div>
