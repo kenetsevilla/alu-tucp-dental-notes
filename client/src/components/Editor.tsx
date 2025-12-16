@@ -4,10 +4,11 @@ import { ContentEditable } from '@lexical/react/LexicalContentEditable';
 import { HistoryPlugin } from '@lexical/react/LexicalHistoryPlugin';
 import { LexicalErrorBoundary } from '@lexical/react/LexicalErrorBoundary';
 import { HeadingNode, QuoteNode } from '@lexical/rich-text';
-import { ListItemNode, ListNode } from '@lexical/list'; // for lists
+import { ListItemNode, ListNode } from '@lexical/list';
+import { TabIndentationPlugin } from '@lexical/react/LexicalTabIndentationPlugin';
 
 import './Editor.css';
-import Toolbar from './Toolbar.tsx'; 
+import Toolbar from './Toolbar'; 
 
 const editorConfig = {
   namespace: 'MyEditor',
@@ -25,7 +26,6 @@ const editorConfig = {
       code: 'editor-text-code',
     },
   },
-  
   onError(error: Error) {
     console.error(error);
   },
@@ -48,6 +48,7 @@ export default function Editor() {
             ErrorBoundary={LexicalErrorBoundary}
           />
           <HistoryPlugin />
+          <TabIndentationPlugin />
         </div>
       </div>
     </LexicalComposer>

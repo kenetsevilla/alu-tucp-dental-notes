@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import {
   FORMAT_TEXT_COMMAND,
@@ -51,6 +51,12 @@ export default function Toolbar() {
   const [fontColor, setFontColor] = useState("#000000");
   const [bgColor, setBgColor] = useState("#ffffff");
 
+  // Lock (Read-Only) State
+  const [isEditable, setIsEditable] = useState(() => editor.isEditable());
+
+  // File Input Ref for Import
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const updateToolbar = useCallback(() => {
     const selection = $getSelection();
     if ($isRangeSelection(selection)) {
@@ -83,19 +89,41 @@ export default function Toolbar() {
       setIsStrikethrough(selection.hasFormat("strikethrough"));
       setIsCode(selection.hasFormat("code"));
 
-      // Update Color Pickers to match selection
+      // Update Color Pickers
       setFontColor($getSelectionStyleValueForProperty(selection, "color", "#000000"));
       setBgColor($getSelectionStyleValueForProperty(selection, "background-color", "#ffffff"));
     }
   }, [editor]);
 
   useEffect(() => {
-    return editor.registerUpdateListener(({ editorState }) => {
+    // Register the listener for selection updates
+    const unregisterUpdate = editor.registerUpdateListener(({ editorState }) => {
       editorState.read(() => {
         updateToolbar();
       });
     });
+
+    // Register listener for Editable mode changes
+    const unregisterEditable = editor.registerEditableListener((editable) => {
+      setIsEditable(editable);
+    });
+
+    return () => {
+      unregisterUpdate();
+      unregisterEditable();
+    };
   }, [editor, updateToolbar]);
+
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest(".headings-bar")) setShowBlockOptionsDropDown(false);
+      if (!target.closest(".align-bar")) setShowAlignDropDown(false);
+    };
+    window.addEventListener("click", handleClickOutside);
+    return () => window.removeEventListener("click", handleClickOutside);
+  }, []);
 
   const formatParagraph = () => {
     if (blockType !== "paragraph") {
@@ -145,12 +173,47 @@ export default function Toolbar() {
     });
   };
 
+  // Import / Export Handlers
+  const exportState = () => {
+    const editorState = editor.getEditorState();
+    const jsonString = JSON.stringify(editorState.toJSON());
+    const blob = new Blob([jsonString], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "editor-state.json";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const importState = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string") {
+        try {
+          const jsonState = JSON.parse(reader.result);
+          const newEditorState = editor.parseEditorState(jsonState);
+          editor.setEditorState(newEditorState);
+        } catch (e) {
+          console.error("Failed to load file", e);
+          alert("Invalid JSON file");
+        }
+      }
+    };
+    reader.readAsText(file);
+    event.target.value = ""; // Reset input
+  };
+
   return (
     <div className="lexical-toolbar">
       {/* Undo/Redo */}
       <div className="undo-redo-bar">
-         <button onClick={() => editor.dispatchCommand(UNDO_COMMAND, undefined)} className="toolbar-btn">Undo</button>
-         <button onClick={() => editor.dispatchCommand(REDO_COMMAND, undefined)} className="toolbar-btn">Redo</button>
+         <button onClick={() => editor.dispatchCommand(UNDO_COMMAND, undefined)} className="toolbar-btn" disabled={!isEditable}>Undo</button>
+         <button onClick={() => editor.dispatchCommand(REDO_COMMAND, undefined)} className="toolbar-btn" disabled={!isEditable}>Redo</button>
       </div>
 
       {/* Headings Dropdown */}
@@ -158,6 +221,7 @@ export default function Toolbar() {
         <button
           className="heading-btn"
           onClick={() => setShowBlockOptionsDropDown(!showBlockOptionsDropDown)}
+          disabled={!isEditable}
         >
           {blockTypeToBlockName[blockType]} ▼
         </button>
@@ -171,11 +235,12 @@ export default function Toolbar() {
         )}
       </div>
 
-      {/* Alignment Dropdown */}
+      {/*  Alignment Dropdown */}
       <div className="align-bar">
         <button
           className="heading-btn"
           onClick={() => setShowAlignDropDown(!showAlignDropDown)}
+          disabled={!isEditable}
         >
           Align ▼
         </button>
@@ -194,11 +259,11 @@ export default function Toolbar() {
 
       {/* Text Formatting Tools */}
       <div className="tools-bar">
-        <button className={`toolbar-btn bold ${isBold ? "active" : ""}`} onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "bold")}>B</button>
-        <button className={`toolbar-btn italic ${isItalic ? "active" : ""}`} onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "italic")}>I</button>
-        <button className={`toolbar-btn underline ${isUnderline ? "active" : ""}`} onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "underline")}>U</button>
-        <button className={`toolbar-btn strike ${isStrikethrough ? "active" : ""}`} onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "strikethrough")}>S</button>
-        <button className={`toolbar-btn code ${isCode ? "active" : ""}`} onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "code")}>&lt;/&gt;</button>
+        <button disabled={!isEditable} className={`toolbar-btn bold ${isBold ? "active" : ""}`} onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "bold")}>B</button>
+        <button disabled={!isEditable} className={`toolbar-btn italic ${isItalic ? "active" : ""}`} onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "italic")}>I</button>
+        <button disabled={!isEditable} className={`toolbar-btn underline ${isUnderline ? "active" : ""}`} onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "underline")}>U</button>
+        <button disabled={!isEditable} className={`toolbar-btn strike ${isStrikethrough ? "active" : ""}`} onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "strikethrough")}>S</button>
+        <button disabled={!isEditable} className={`toolbar-btn code ${isCode ? "active" : ""}`} onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "code")}>&lt;/&gt;</button>
       </div>
 
       {/* Color Pickers (Text & Background) */}
@@ -215,12 +280,13 @@ export default function Toolbar() {
               className="hidden-color-input" 
               onChange={onFontColorSelect} 
               value={fontColor} 
+              disabled={!isEditable}
            />
         </div>
-        {/* Reset Text Color */}
         <button 
            className="reset-color-btn" 
            title="Reset Text Color"
+           disabled={!isEditable}
            onClick={() => {
              editor.update(() => {
                const selection = $getSelection();
@@ -228,6 +294,7 @@ export default function Toolbar() {
                  $patchStyleText(selection, { color: null }); 
                }
              });
+             setFontColor("#000000"); 
            }}
         >
           ✕
@@ -247,12 +314,13 @@ export default function Toolbar() {
               className="hidden-color-input" 
               onChange={onBgColorSelect} 
               value={bgColor} 
+              disabled={!isEditable}
            />
         </div>
-        {/* Reset Background Color */}
         <button 
            className="reset-color-btn" 
            title="Reset Highlight"
+           disabled={!isEditable}
            onClick={() => {
              editor.update(() => {
                const selection = $getSelection();
@@ -260,11 +328,32 @@ export default function Toolbar() {
                  $patchStyleText(selection, { "background-color": null });
                }
              });
+             setBgColor("#ffffff");
            }}
         >
           ✕
         </button>
       </div>
+
+      <div className="divider"></div>
+
+      {/* Import / Export */}
+      <div className="actions-bar">
+        <button className="toolbar-btn" onClick={exportState} title="Export JSON">⬇️</button>
+        <button className="toolbar-btn" onClick={() => fileInputRef.current?.click()} title="Import JSON" disabled={!isEditable}>⬆️</button>
+        <input type="file" ref={fileInputRef} onChange={importState} style={{ display: "none" }} accept=".json"/>
+      </div>
+
+      <div className="divider"></div>
+
+      {/* Read-Only Toggle */}
+      <button 
+        className={`toolbar-btn lock-btn ${!isEditable ? "active" : ""}`}
+        onClick={() => editor.setEditable(!editor.isEditable())}
+        title="Toggle Read-Only Mode"
+      >
+        {isEditable ? "🔓" : "🔒"}
+      </button>
 
     </div>
   );
