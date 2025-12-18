@@ -1,2 +1,2 @@
-# rich-text-editor
-A lightweight rich text editor built with React and Meta's Lexical framework.
+# alu-tucp-dental-notes
+Designed for ALU-TUCP, this dental documentation platform utilizes Lexical to ensure fast, structured note-taking.
