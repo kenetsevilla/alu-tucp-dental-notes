@@ -1,7 +1,8 @@
 import './MainPage.css'
-import Header from './components/Header.tsx'
+// import Header from './components/Header.tsx'
 import Sidebar from './components/Sidebar.tsx'
 import ContentBox from './components/ContentBox.tsx'
+import Header from "./components/TempHeader.tsx";
 
 function MainPage() {
 

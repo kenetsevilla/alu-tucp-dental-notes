@@ -1,0 +1,40 @@
+.metadata-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  background-color: rgb(73, 22, 160);
+  padding: 16px;
+  border-radius: 8px;
+  border: 1px solid black;
+  margin-bottom: 12px;
+}
+
+.metadata-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 10px;
+}
+
+.metadata-grid input,
+.metadata-grid select {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  font-size: 14px;
+  box-sizing: border-box;
+}
+
+.split-row {
+  display: flex;
+  gap: 8px;
+}
+
+.age-input {
+  width: 40% !important;
+}
+
+.sex-input {
+  width: 60% !important;
+}

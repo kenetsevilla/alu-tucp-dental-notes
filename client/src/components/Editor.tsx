@@ -5,6 +5,7 @@ import { HistoryPlugin } from '@lexical/react/LexicalHistoryPlugin';
 import { LexicalErrorBoundary } from '@lexical/react/LexicalErrorBoundary';
 import { HeadingNode, QuoteNode } from '@lexical/rich-text';
 import { TabIndentationPlugin } from '@lexical/react/LexicalTabIndentationPlugin';
+import { AutoFocusPlugin } from '@lexical/react/LexicalAutoFocusPlugin';
 
 import './Editor.css';
 import Toolbar from './Toolbar'; 
@@ -46,6 +47,7 @@ export default function Editor() {
           />
           <HistoryPlugin />
           <TabIndentationPlugin />
+          <AutoFocusPlugin /> 
         </div>
       </div>
     </LexicalComposer>
